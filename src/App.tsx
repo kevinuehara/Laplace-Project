@@ -1,43 +1,47 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { FaMicrophone } from "react-icons/fa";
 import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
 import { OpenAIClass } from "./service/Openai";
-import { Button } from "./components/Button";
+import { Microphone } from "./components/Microphone";
+import { Command } from "./types";
 
 function App() {
-  const [message, setMessage] = useState("");
   const [result, setResult] = useState("");
   const [isDark, setIsDark] = useState(false);
 
+  const stopListen = () => {
+    SpeechRecognition.stopListening();
+    resetTranscript();
+    setResult("");
+  };
+
   const commands = [
     {
-      command: "apagar",
+      command: Command.APAGAR,
       callback: () => resetTranscript(),
     },
     {
-      command: "escurecer",
+      command: Command.ESCURECER,
       callback: () => setIsDark(true),
     },
     {
-      command: "clarear",
+      command: Command.CLAREAR,
       callback: () => setIsDark(false),
+    },
+    {
+      command: Command.PARAR_OURVIR,
+      callback: () => stopListen(),
+    },
+    {
+      command: Command.TERMINEI,
+      callback: async () => await callOpenai(),
     },
   ];
 
-  const {
-    transcript,
-    interimTranscript,
-    finalTranscript,
-    resetTranscript,
-    listening,
-  } = useSpeechRecognition({ commands });
-
-  useEffect(() => {
-    if (finalTranscript !== "") {
-      console.log("Got final result:", finalTranscript);
-    }
-  }, [interimTranscript, finalTranscript]);
+  const { transcript, finalTranscript, resetTranscript, listening } =
+    useSpeechRecognition({ commands });
 
   if (!SpeechRecognition.browserSupportsSpeechRecognition()) {
     return null;
@@ -53,13 +57,10 @@ function App() {
       continuous: true,
       language: "pt-BR",
     });
-
-    setMessage(transcript);
   };
 
   const callOpenai = async () => {
     const response = await OpenAIClass.generateMessage(finalTranscript);
-    console.log(response.message.content);
     setResult(
       response && response.message.content ? response.message.content : ""
     );
@@ -71,19 +72,49 @@ function App() {
         isDark
           ? `bg-gray-900 text-white transition ease-in`
           : "text-black bg-white transition ease-in"
-      } h-screen w-screen`}
+      } h-screen w-screen relative`}
     >
-      <div>
-        <span className="text-x">Escutando: {listening ? "sim" : "não"}</span>
-        <div>
-          <Button onClick={listenContinuously} label="Escutar" />
-          <Button onClick={callOpenai} label="Parar" />
+      <div className="flex flex-col relative h-1/4 bg-purple-700 w-screen">
+        <div className="absolute left-[38%] md:left-[42%] top-10">
+          <h1 className="text-4xl text-white">Laplace</h1>
+        </div>
+        <div className="absolute top-36 left-[35%] md:left-[42%]">
+          <Microphone
+            isDark={isDark}
+            listening={listening}
+            stopByClick={() => SpeechRecognition.stopListening()}
+            startListen={() => listenContinuously()}
+          >
+            <FaMicrophone
+              className={`${isDark ? "text-black" : "text-white"} text-4xl`}
+            />
+          </Microphone>
         </div>
       </div>
-      <div>{message}</div>
-      <div>
-        <span className="text-xl">{transcript}</span>
-        <div dangerouslySetInnerHTML={{ __html: result }}></div>
+
+      <div className="mt-20">
+        {transcript && listening && (
+          <>
+            <div>
+              <span className="text-xl font-semibold">Transcrição</span>
+              <div className="border-blue-300 border p-3">
+                <span className="text-xl">{transcript}</span>
+              </div>
+            </div>
+
+            <div
+              className={`${
+                result && listening ? "border-red-300 border" : ""
+              } mt-5`}
+            >
+              <span className="text-xl font-semibold">Resultado</span>
+              <div
+                className="p-3"
+                dangerouslySetInnerHTML={{ __html: result }}
+              ></div>
+            </div>
+          </>
+        )}
       </div>
     </main>
   );
