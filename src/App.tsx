@@ -1,15 +1,22 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { FaMicrophone } from "react-icons/fa";
 import SpeechRecognition, {
   useSpeechRecognition,
 } from "react-speech-recognition";
 import { OpenAIClass } from "./service/Openai";
 import { Microphone } from "./components/Microphone";
-import { Command } from "./types";
+import { Select } from "./components/Select";
+import { CommandEnUs, CommandPtBr } from "./types";
+
+const langsAvailable = [
+  { label: "pt-br", value: "pt-br" },
+  { label: "en-us", value: "en-us" },
+];
 
 function App() {
   const [result, setResult] = useState("");
   const [isDark, setIsDark] = useState(false);
+  const [lang, setLang] = useState("pt-br");
 
   const stopListen = () => {
     SpeechRecognition.stopListening();
@@ -17,25 +24,29 @@ function App() {
     setResult("");
   };
 
+  const Command = useMemo(() => {
+    return lang === "pt-br" ? CommandPtBr : CommandEnUs;
+  }, [lang]);
+
   const commands = [
     {
-      command: Command.APAGAR,
+      command: Command.CLEAR,
       callback: () => resetTranscript(),
     },
     {
-      command: Command.ESCURECER,
+      command: Command.DARKER,
       callback: () => setIsDark(true),
     },
     {
-      command: Command.CLAREAR,
+      command: Command.LIGHT,
       callback: () => setIsDark(false),
     },
     {
-      command: Command.PARAR_OURVIR,
+      command: Command.STOP_LISTENING,
       callback: () => stopListen(),
     },
     {
-      command: Command.TERMINEI,
+      command: Command.FINISHED,
       callback: async () => await callOpenai(),
     },
   ];
@@ -55,7 +66,7 @@ function App() {
   const listenContinuously = () => {
     SpeechRecognition.startListening({
       continuous: true,
-      language: "pt-BR",
+      language: lang,
     });
   };
 
@@ -75,7 +86,13 @@ function App() {
       } h-screen w-screen relative`}
     >
       <div className="flex flex-col relative h-1/4 bg-purple-700 w-screen">
-        <div className="absolute left-[38%] md:left-[42%] top-10">
+        <Select
+          items={langsAvailable}
+          isDark={isDark}
+          label="Language"
+          onChange={(e) => setLang(e.currentTarget.value)}
+        />
+        <div className="absolute left-[36%] md:left-[43%] top-10">
           <h1 className="text-4xl text-white">Laplace</h1>
         </div>
         <div className="absolute top-36 left-[35%] md:left-[42%]">
